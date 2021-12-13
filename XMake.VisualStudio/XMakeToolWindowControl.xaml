@@ -1,0 +1,55 @@
+﻿<UserControl x:Class="XMake.VisualStudio.XMakeToolWindowControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vsshell="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+             Background="{DynamicResource {x:Static vsshell:VsBrushes.WindowKey}}"
+             Foreground="{DynamicResource {x:Static vsshell:VsBrushes.WindowTextKey}}"
+             mc:Ignorable="d"
+             d:DesignHeight="360" d:DesignWidth="300"
+             Name="MyToolWindow">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="XMakeToolWindowResources.xaml">
+                </ResourceDictionary>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel x:Name="RootNode" Orientation="Vertical" Margin="0,0,0,0">
+        <Grid Margin="10,10,10,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"></ColumnDefinition>
+                <ColumnDefinition Width="Auto"></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"></RowDefinition>
+                <RowDefinition Height="Auto"></RowDefinition>
+                <RowDefinition Height="Auto"></RowDefinition>
+                <RowDefinition Height="Auto"></RowDefinition>
+            </Grid.RowDefinitions>
+
+            <Label Content="Mode" Grid.Row="0" Grid.Column="0" Style="{StaticResource CommonLabelStyle}"/>
+            <ComboBox Grid.Row="0" Grid.Column="1" Name="ModeComboBox" SelectedIndex="0" Style="{StaticResource CommonComboBoxStyle}" HorizontalAlignment="Right" SelectionChanged="ModeComboBox_SelectionChanged">
+            </ComboBox>
+
+            <Label Content="Platform" Grid.Row="1" Grid.Column="0" Style="{StaticResource CommonLabelStyle}"/>
+            <ComboBox Grid.Row="1" Grid.Column="1" Name="PlatformComboBox" SelectedIndex="0" Style="{StaticResource CommonComboBoxStyle}" HorizontalAlignment="Right" SelectionChanged="PlatformComboBox_SelectionChanged">
+            </ComboBox>
+
+            <Label Content="Architecture" Grid.Row="2" Grid.Column="0" Style="{StaticResource CommonLabelStyle}"/>
+            <ComboBox Grid.Row="2" Grid.Column="1" Name="ArchComboBox" SelectedIndex="0" Style="{StaticResource CommonComboBoxStyle}" HorizontalAlignment="Right" SelectionChanged="ArchComboBox_SelectionChanged">
+            </ComboBox>
+        </Grid>
+
+        <Button x:Name="QuickStart" Content="Quick Start" Margin="10,5,10,0" VerticalAlignment="Center" Height="30" Click="QuickStart_Click"></Button>
+        <Button x:Name="Build" Content="Build" Margin="10,10,10,10" HorizontalAlignment="Stretch" Height="30" Click="Build_Click"/>
+        <Button x:Name="Run" Content="Run" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="Run_Click"></Button>
+        <Button x:Name="Clean" Content="Clean" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="Clean_Click"></Button>
+        <Button x:Name="CleanConfig" Content="Clean Config" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="CleanConfig_Click"></Button>
+        <Button x:Name="CMake" Content="Update CMakeList" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="CMake_Click"></Button>
+    </StackPanel>
+</UserControl>
