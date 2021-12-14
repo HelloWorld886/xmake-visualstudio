@@ -16,9 +16,22 @@ namespace XMake.VisualStudio
         private static string _projectDir;
         private static bool _optionsChanged = false;
         private static string _target = "default";
+        private static CommandType _commandType = CommandType.None;
 
         public static Action BeginOutput;
         public static Action<string> Output;
+        public static Action<CommandType> CommandFinished;
+
+        public enum CommandType
+        {
+            None,
+            QuickStart,
+            Run,
+            Build,
+            Clean,
+            CleanConfig,
+            UpdateCMake
+        }
 
         static XMakePlugin()
         {
@@ -223,7 +236,7 @@ namespace XMake.VisualStudio
             _optionsChanged = false;
         }
 
-        private static void RunCommand(string command, Action finish = null)
+        private static void RunCommand(string command)
         {
             if (string.IsNullOrEmpty(_projectDir))
                 return;
@@ -245,16 +258,18 @@ namespace XMake.VisualStudio
             proc.OutputDataReceived += Proc_OutputDataReceived;
             proc.ErrorDataReceived += Proc_ErrorDataReceived;
             proc.EnableRaisingEvents = true;
-            proc.Exited += (sender, e) =>
-            {
-                Output.Invoke("xmake finished");
-                if (finish != null)
-                    finish();
-            };
+            proc.Exited += Proc_ExitReceived;
 
             proc.Start();
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
+        }
+
+        private static void Proc_ExitReceived(object sender, EventArgs e)
+        {
+            Output.Invoke("xmake finished");
+            CommandFinished.Invoke(_commandType);
+            _commandType = CommandType.None;
         }
 
         private static void Proc_ErrorDataReceived(object sender, DataReceivedEventArgs e)
@@ -271,12 +286,13 @@ namespace XMake.VisualStudio
             }
         }
 
-        public static void QuickStart(Action finish)
+        public static void QuickStart()
         {
-            RunCommand("f -y", finish);
+            _commandType = CommandType.QuickStart;
+            RunCommand("f -y");
         }
 
-        public static void Build(Action finish)
+        public static void Build()
         {
             if (string.IsNullOrEmpty(_target))
                 return;
@@ -286,7 +302,8 @@ namespace XMake.VisualStudio
                 command += " " + _target;
             else
                 command += " -a";
-            RunCommand(command, finish);
+            _commandType = CommandType.Build;
+            RunCommand(command);
         }
 
         public static void Run()
@@ -297,22 +314,25 @@ namespace XMake.VisualStudio
             string command = "r";
             if ( _target != "default")
                command += " " + _target;
-
+            _commandType = CommandType.Run;
             RunCommand(command);
         }
 
-        public static void Clean(Action finish)
+        public static void Clean()
         {
-            RunCommand("f c -y", finish);
+            _commandType = CommandType.Clean;
+            RunCommand("f c -y");
         }
 
-        public static void CleanConfig(Action finish)
+        public static void CleanConfig()
         {
-            RunCommand("f -c -y", finish);
+            _commandType = CommandType.CleanConfig;
+            RunCommand("f -c -y");
         }
 
         public static void UpdateCMake()
         {
+            _commandType = CommandType.UpdateCMake;
             RunCommand("project -k cmake");
         }
     }

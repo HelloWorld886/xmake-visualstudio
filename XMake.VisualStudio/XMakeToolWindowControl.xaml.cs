@@ -86,13 +86,17 @@ namespace XMake.VisualStudio
             XMakePlugin.SetOption("arch", ArchComboBox.SelectedItem.ToString());
         }
 
+        private void TargetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (TargetComboBox.SelectedItem == null)
+                return;
+
+            XMakePlugin.Target = TargetComboBox.SelectedItem.ToString();
+        }
+
         private void Build_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.Build(() =>
-            {
-                XMakePlugin.LoadTargets();
-                ResetTarget();
-            });
+            XMakePlugin.Build();
         }
 
         private void Run_Click(object sender, RoutedEventArgs e)
@@ -102,24 +106,12 @@ namespace XMake.VisualStudio
 
         private void Clean_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.Clean(() =>
-            {
-                XMakePlugin.LoadConfig();
-                ResetConfig();
-                XMakePlugin.LoadTargets();
-                ResetTarget();
-            });
+            XMakePlugin.Clean();
         }
 
         private void CleanConfig_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.CleanConfig(() =>
-            {
-                XMakePlugin.LoadConfig();
-                ResetConfig();
-                XMakePlugin.LoadTargets();
-                ResetTarget();
-            });
+            XMakePlugin.CleanConfig();
         }
 
         private void CMake_Click(object sender, RoutedEventArgs e)
@@ -129,19 +121,9 @@ namespace XMake.VisualStudio
 
         private void QuickStart_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.QuickStart(() =>
-            {
-                XMakePlugin.LoadTargets();
-                ResetTarget();
-            });
+            XMakePlugin.QuickStart();
         }
 
-        private void TargetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (TargetComboBox.SelectedItem == null)
-                return;
 
-            XMakePlugin.Target = TargetComboBox.SelectedItem.ToString();
-        }
     }
 }

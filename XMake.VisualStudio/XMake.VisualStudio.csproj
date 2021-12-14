@@ -101,6 +101,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Icon.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <Content Include="Resources\XMakeCommand.png" />
     <Content Include="Resources\XMakeCommandPackage.ico" />
     <Content Include="Resources\XMakeToolWindowCommand.png" />
