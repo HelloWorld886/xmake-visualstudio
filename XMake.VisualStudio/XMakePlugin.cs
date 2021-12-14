@@ -120,7 +120,11 @@ namespace XMake.VisualStudio
             }
 
             if (!string.IsNullOrEmpty(result))
+            {
+                Regex regex = new Regex("\u001B\\[[;\\d]*m");
+                result = regex.Replace(result, "");
                 cache = result.Trim().Split(' ');
+            }
 
             string platform = cache != null && cache.Length > 0 && !string.IsNullOrEmpty(cache[0]) ? cache[0] : null;
             if (!string.IsNullOrEmpty(platform))
@@ -150,7 +154,7 @@ namespace XMake.VisualStudio
             {          
                 proc.StartInfo.WorkingDirectory = _projectDir;
                 proc.StartInfo.FileName = "xmake";
-                proc.StartInfo.Arguments = "l -c \"import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end\"";
+                proc.StartInfo.Arguments = "l -c \"import(\\\"core.project.config\\\"); import(\\\"core.project.project\\\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end\"";
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.StartInfo.CreateNoWindow = true;
@@ -159,24 +163,28 @@ namespace XMake.VisualStudio
                 proc.StartInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
                 proc.Start();
                 string result = proc.StandardOutput.ReadToEnd();
-                string[] targets = result.Trim().Split('\n');
-                bool find = false;
-                foreach (var item in targets)
+                if (!string.IsNullOrEmpty(result))
                 {
-                    if (string.IsNullOrEmpty(item))
-                        continue;
+                    Regex regex = new Regex("\u001B\\[[;\\d]*m");
+                    result = regex.Replace(result, "");
+                    string[] targets = result.Trim().Split('\n');
+                    bool find = false;
+                    foreach (var item in targets)
+                    {
+                        if (string.IsNullOrEmpty(item))
+                            continue;
 
-                    _targets.Add(item);
+                        _targets.Add(item);
 
-                    if (!find && _target != null && _target == item)
-                        find = true;
+                        if (!find && _target != null && _target == item)
+                            find = true;
+                    }
+
+                    if (!find)
+                    {
+                        _target = _targets.Count > 1 ? _targets[1] : _targets[0];
+                    }
                 }
-
-                if(!find)
-                {
-                    _target = _targets.Count > 1 ? _targets[1] : _targets[0];
-                }
-
             }
         }
 

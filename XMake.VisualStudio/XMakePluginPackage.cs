@@ -136,8 +136,10 @@ namespace XMake.VisualStudio
             }
         }
 
-        protected override Task OnAfterPackageLoadedAsync(CancellationToken cancellationToken)
+        protected override async Task OnAfterPackageLoadedAsync(CancellationToken cancellationToken)
         {
+            await base.OnAfterPackageLoadedAsync(cancellationToken);
+
             IVsSolution solution = GetService(typeof(SVsSolution)) as IVsSolution;
             solution.GetSolutionInfo(out string directory, out string solutionFile, out string optsFile);
             if(directory == null)
@@ -146,11 +148,10 @@ namespace XMake.VisualStudio
             }
             else if(Directory.Exists(solutionFile) && Directory.Exists(directory))
             {
+                await this.JoinableTaskFactory.SwitchToMainThreadAsync();
+
                 Init(directory);
             }
-
-
-            return base.OnAfterPackageLoadedAsync(cancellationToken);
         }
 
         public void OnAfterOpenFolder(string folderPath)

@@ -64,16 +64,25 @@ namespace XMake.VisualStudio
 
         private void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (ModeComboBox.SelectedItem == null)
+                return;
+
             XMakePlugin.SetOption("mode", ModeComboBox.SelectedItem.ToString());
         }
 
         private void PlatformComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (PlatformComboBox.SelectedItem == null)
+                return;
+
             XMakePlugin.SetOption("platform", PlatformComboBox.SelectedItem.ToString());
         }
 
         private void ArchComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (ArchComboBox.SelectedItem == null)
+                return;
+
             XMakePlugin.SetOption("arch", ArchComboBox.SelectedItem.ToString());
         }
 
@@ -129,6 +138,9 @@ namespace XMake.VisualStudio
 
         private void TargetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (TargetComboBox.SelectedItem == null)
+                return;
+
             XMakePlugin.Target = TargetComboBox.SelectedItem.ToString();
         }
     }
