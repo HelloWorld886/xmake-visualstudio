@@ -187,9 +187,10 @@ namespace XMake.VisualStudio
                         if (string.IsNullOrEmpty(item))
                             continue;
 
-                        _targets.Add(item);
+                        string t = item.Trim();
+                        _targets.Add(t);
 
-                        if (!find && _target != null && _target == item)
+                        if (!find && _target != null && _target == t)
                             find = true;
                     }
 
