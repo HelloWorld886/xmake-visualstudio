@@ -12,8 +12,10 @@ namespace XMake.VisualStudio
         private static string[] _modes;
         private static string[] _platforms;
         private static string[] _archs;
+        private static List<string> _targets = new List<string>();
         private static string _projectDir;
         private static bool _optionsChanged = false;
+        private static string _target = "default";
 
         public static Action BeginOutput;
         public static Action<string> Output;
@@ -35,6 +37,7 @@ namespace XMake.VisualStudio
                 "x86",
                 "x64"
             };
+            _targets.Add("default");
         }
 
         public static string[] Modes
@@ -62,6 +65,14 @@ namespace XMake.VisualStudio
             }
         }
 
+        public static IReadOnlyList<string> Targets
+        {
+            get 
+            { 
+                return _targets; 
+            }
+        }
+
         public static string ProjectDir
         {
             get
@@ -71,6 +82,18 @@ namespace XMake.VisualStudio
             set
             {
                 _projectDir = value;
+            }
+        }
+
+        public static string Target
+        {
+            set 
+            { 
+                _target = value; 
+            }
+            get
+            {
+                return _target;
             }
         }
 
@@ -99,24 +122,62 @@ namespace XMake.VisualStudio
             if (!string.IsNullOrEmpty(result))
                 cache = result.Trim().Split(' ');
 
-            string platform = cache != null && !string.IsNullOrEmpty(cache[0]) ? cache[0] : null;
+            string platform = cache != null && cache.Length > 0 && !string.IsNullOrEmpty(cache[0]) ? cache[0] : null;
             if (!string.IsNullOrEmpty(platform))
                 _options["platform"] = platform;
             else
                 _options["platform"] = _platforms[0];
 
-            string arch = cache != null && !string.IsNullOrEmpty(cache[1]) ? cache[1] : null;
+            string arch = cache != null && cache.Length > 1 && !string.IsNullOrEmpty(cache[1]) ? cache[1] : null;
             if (!string.IsNullOrEmpty(arch))
                 _options["arch"] = arch;
             else
                 _options["arch"] = _archs[0];
 
-            string mode = cache != null && !string.IsNullOrEmpty(cache[2]) ? cache[2] : null;
+            string mode = cache != null && cache.Length > 2 && !string.IsNullOrEmpty(cache[2]) ? cache[2] : null;
             if (!string.IsNullOrEmpty(mode))
                 _options["mode"] = mode;
             else
                 _options["mode"] = _modes[0];
 
+        }
+
+        public static void LoadTargets()
+        {
+            _targets.Clear();
+            _targets.Add("default");
+            using (var proc = new Process())
+            {          
+                proc.StartInfo.WorkingDirectory = _projectDir;
+                proc.StartInfo.FileName = "xmake";
+                proc.StartInfo.Arguments = "l -c \"import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end\"";
+                proc.StartInfo.UseShellExecute = false;
+                proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.CreateNoWindow = true;
+                proc.StartInfo.RedirectStandardError = true;
+                proc.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
+                proc.StartInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
+                proc.Start();
+                string result = proc.StandardOutput.ReadToEnd();
+                string[] targets = result.Trim().Split('\n');
+                bool find = false;
+                foreach (var item in targets)
+                {
+                    if (string.IsNullOrEmpty(item))
+                        continue;
+
+                    _targets.Add(item);
+
+                    if (!find && _target != null && _target == item)
+                        find = true;
+                }
+
+                if(!find)
+                {
+                    _target = _targets.Count > 1 ? _targets[1] : _targets[0];
+                }
+
+            }
         }
 
         public static string GetOption(string name)
@@ -154,7 +215,7 @@ namespace XMake.VisualStudio
             _optionsChanged = false;
         }
 
-        private static void RunCommand(string command)
+        private static void RunCommand(string command, Action finish = null)
         {
             if (string.IsNullOrEmpty(_projectDir))
                 return;
@@ -176,16 +237,16 @@ namespace XMake.VisualStudio
             proc.OutputDataReceived += Proc_OutputDataReceived;
             proc.ErrorDataReceived += Proc_ErrorDataReceived;
             proc.EnableRaisingEvents = true;
-            proc.Exited += Proc_Exited;
+            proc.Exited += (sender, e) =>
+            {
+                Output.Invoke("xmake finished");
+                if (finish != null)
+                    finish();
+            };
 
             proc.Start();
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
-        }
-
-        private static void Proc_Exited(object sender, EventArgs e)
-        {
-            Output.Invoke("xmake finished");
         }
 
         private static void Proc_ErrorDataReceived(object sender, DataReceivedEventArgs e)
@@ -202,30 +263,44 @@ namespace XMake.VisualStudio
             }
         }
 
-        public static void QuickStart()
+        public static void QuickStart(Action finish)
         {
-            RunCommand("f -y");
+            RunCommand("f -y", finish);
         }
 
-        public static void Build()
+        public static void Build(Action finish)
         {
-            RunCommand("build -v -a -y");
-        }
+            if (string.IsNullOrEmpty(_target))
+                return;
 
+            string command = "build -v -y";
+            if (_target != "default")
+                command += " " + _target;
+            else
+                command += " -a";
+            RunCommand(command, finish);
+        }
 
         public static void Run()
         {
-            RunCommand("r -a");
+            if (string.IsNullOrEmpty(_target))
+                return;
+
+            string command = "r";
+            if ( _target != "default")
+               command += " " + _target;
+
+            RunCommand(command);
         }
 
-        public static void Clean()
+        public static void Clean(Action finish)
         {
-            RunCommand("f c -y");
+            RunCommand("f c -y", finish);
         }
 
-        public static void CleanConfig()
+        public static void CleanConfig(Action finish)
         {
-            RunCommand("f -c -y");
+            RunCommand("f -c -y", finish);
         }
 
         public static void UpdateCMake()

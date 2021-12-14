@@ -103,17 +103,33 @@ namespace XMake.VisualStudio
                 {
                     FileInfo fileInfo = new FileInfo(file);
                     XMakePlugin.ProjectDir = fileInfo.Directory.FullName;
-                    XMakePlugin.LoadConfig();
-                    XMakePlugin.BeginOutput += BeginPrint;
-                    XMakePlugin.Output += Print;
-
-                    XMakeToolWindow window = FindToolWindow(typeof(XMakeToolWindow), 0, true) as XMakeToolWindow;
-                    IVsWindowFrame windowFrame = (IVsWindowFrame)window.Frame;
-                    if (windowFrame.IsVisible() == 0)
+                    bool valid = true;
+                    try
                     {
-                        XMakeToolWindowControl control = (XMakeToolWindowControl)window.Content;
-                        control.SetEnable(true);
-                        control.Reset();
+                        XMakePlugin.LoadConfig();
+                        XMakePlugin.LoadTargets();
+
+                        XMakePlugin.BeginOutput += BeginPrint;
+                        XMakePlugin.Output += Print;
+                    }
+                    catch (Exception ex)
+                    {
+                        valid = false;
+                        BeginPrint();
+                        Print(ex.StackTrace);
+                    }
+
+                    if (valid)
+                    {
+                        XMakeToolWindow window = FindToolWindow(typeof(XMakeToolWindow), 0, true) as XMakeToolWindow;
+                        IVsWindowFrame windowFrame = (IVsWindowFrame)window.Frame;
+                        if (windowFrame.IsVisible() == 0)
+                        {
+                            XMakeToolWindowControl control = (XMakeToolWindowControl)window.Content;
+                            control.SetEnable(true);
+                            control.ResetConfig();
+                            control.ResetTarget();
+                        }
                     }
                     break;
                 }

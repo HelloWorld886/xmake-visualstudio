@@ -19,10 +19,10 @@
     </UserControl.Resources>
 
     <StackPanel x:Name="RootNode" Orientation="Vertical" Margin="0,0,0,0">
-        <Grid Margin="10,10,10,0">
+        <Grid x:Name="grid" Margin="10,10,10,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"></ColumnDefinition>
-                <ColumnDefinition Width="Auto"></ColumnDefinition>
+                <ColumnDefinition Width="*"></ColumnDefinition>
+                <ColumnDefinition Width="2*"></ColumnDefinition>
             </Grid.ColumnDefinitions>
 
             <Grid.RowDefinitions>
@@ -33,23 +33,26 @@
             </Grid.RowDefinitions>
 
             <Label Content="Mode" Grid.Row="0" Grid.Column="0" Style="{StaticResource CommonLabelStyle}"/>
-            <ComboBox Grid.Row="0" Grid.Column="1" Name="ModeComboBox" SelectedIndex="0" Style="{StaticResource CommonComboBoxStyle}" HorizontalAlignment="Right" SelectionChanged="ModeComboBox_SelectionChanged">
+            <ComboBox Grid.Row="0" Grid.Column="1" Name="ModeComboBox" SelectedIndex="0" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ComboBoxStyleKey}}" HorizontalAlignment="Stretch" SelectionChanged="ModeComboBox_SelectionChanged">
             </ComboBox>
 
             <Label Content="Platform" Grid.Row="1" Grid.Column="0" Style="{StaticResource CommonLabelStyle}"/>
-            <ComboBox Grid.Row="1" Grid.Column="1" Name="PlatformComboBox" SelectedIndex="0" Style="{StaticResource CommonComboBoxStyle}" HorizontalAlignment="Right" SelectionChanged="PlatformComboBox_SelectionChanged">
-            </ComboBox>
+            <ComboBox Grid.Row="1" Grid.Column="1" Name="PlatformComboBox" SelectedIndex="0" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ComboBoxStyleKey}}" HorizontalAlignment="Stretch" SelectionChanged="PlatformComboBox_SelectionChanged" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" MinWidth="1"/>
 
             <Label Content="Architecture" Grid.Row="2" Grid.Column="0" Style="{StaticResource CommonLabelStyle}"/>
-            <ComboBox Grid.Row="2" Grid.Column="1" Name="ArchComboBox" SelectedIndex="0" Style="{StaticResource CommonComboBoxStyle}" HorizontalAlignment="Right" SelectionChanged="ArchComboBox_SelectionChanged">
+            <ComboBox Grid.Row="2" Grid.Column="1" Name="ArchComboBox" SelectedIndex="0" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ComboBoxStyleKey}}" HorizontalAlignment="Stretch" SelectionChanged="ArchComboBox_SelectionChanged">
+            </ComboBox>
+
+            <Label Content="Target" Grid.Row="3" Grid.Column="0" Style="{StaticResource CommonLabelStyle}"/>
+            <ComboBox Grid.Row="3" Grid.Column="1" Name="TargetComboBox" SelectedIndex="0" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ComboBoxStyleKey}}" HorizontalAlignment="Stretch" SelectionChanged="TargetComboBox_SelectionChanged">
             </ComboBox>
         </Grid>
 
-        <Button x:Name="QuickStart" Content="Quick Start" Margin="10,5,10,0" VerticalAlignment="Center" Height="30" Click="QuickStart_Click"></Button>
-        <Button x:Name="Build" Content="Build" Margin="10,10,10,10" HorizontalAlignment="Stretch" Height="30" Click="Build_Click"/>
-        <Button x:Name="Run" Content="Run" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="Run_Click"></Button>
-        <Button x:Name="Clean" Content="Clean" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="Clean_Click"></Button>
-        <Button x:Name="CleanConfig" Content="Clean Config" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="CleanConfig_Click"></Button>
-        <Button x:Name="CMake" Content="Update CMakeList" Margin="10,5,10,10" VerticalAlignment="Center" Height="30" Click="CMake_Click"></Button>
+        <Button x:Name="QuickStart" Content="Quick Start" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="QuickStart_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"/>
+        <Button x:Name="Build" Content="Build" Margin="10,5,10,5" HorizontalAlignment="Stretch" Height="30" Click="Build_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"/>
+        <Button x:Name="Run" Content="Run" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="Run_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
+        <Button x:Name="Clean" Content="Clean" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="Clean_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
+        <Button x:Name="CleanConfig" Content="Clean Config" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="CleanConfig_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
+        <Button x:Name="CMake" Content="Update CMakeList" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="CMake_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
     </StackPanel>
 </UserControl>

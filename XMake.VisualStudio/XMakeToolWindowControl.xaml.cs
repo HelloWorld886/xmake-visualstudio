@@ -36,7 +36,8 @@ namespace XMake.VisualStudio
                 ModeComboBox.Items.Add(item);
             }
 
-            Reset();
+            ResetConfig();
+            ResetTarget();
         }
 
         public void SetEnable(bool isEnable)
@@ -44,11 +45,21 @@ namespace XMake.VisualStudio
             RootNode.IsEnabled = isEnable;
         }
 
-        public void Reset()
+        public void ResetConfig()
         {
             PlatformComboBox.SelectedItem = XMakePlugin.GetOption("platform");
             ArchComboBox.SelectedItem = XMakePlugin.GetOption("arch");
             ModeComboBox.SelectedItem = XMakePlugin.GetOption("mode");
+        }
+
+        public void ResetTarget()
+        {
+            TargetComboBox.Items.Clear();
+            foreach (var item in XMakePlugin.Targets)
+            {
+                TargetComboBox.Items.Add(item);
+            }
+            TargetComboBox.SelectedItem = XMakePlugin.Target;
         }
 
         private void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -68,7 +79,11 @@ namespace XMake.VisualStudio
 
         private void Build_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.Build();
+            XMakePlugin.Build(() =>
+            {
+                XMakePlugin.LoadTargets();
+                ResetTarget();
+            });
         }
 
         private void Run_Click(object sender, RoutedEventArgs e)
@@ -78,12 +93,24 @@ namespace XMake.VisualStudio
 
         private void Clean_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.Clean();
+            XMakePlugin.Clean(() =>
+            {
+                XMakePlugin.LoadConfig();
+                ResetConfig();
+                XMakePlugin.LoadTargets();
+                ResetTarget();
+            });
         }
 
         private void CleanConfig_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.CleanConfig();
+            XMakePlugin.CleanConfig(() =>
+            {
+                XMakePlugin.LoadConfig();
+                ResetConfig();
+                XMakePlugin.LoadTargets();
+                ResetTarget();
+            });
         }
 
         private void CMake_Click(object sender, RoutedEventArgs e)
@@ -93,7 +120,16 @@ namespace XMake.VisualStudio
 
         private void QuickStart_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.QuickStart();
+            XMakePlugin.QuickStart(() =>
+            {
+                XMakePlugin.LoadTargets();
+                ResetTarget();
+            });
+        }
+
+        private void TargetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            XMakePlugin.Target = TargetComboBox.SelectedItem.ToString();
         }
     }
 }
