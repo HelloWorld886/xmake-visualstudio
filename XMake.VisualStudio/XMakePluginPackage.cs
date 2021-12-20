@@ -73,7 +73,7 @@ namespace XMake.VisualStudio
             await XMakeCommand.InitializeAsync(this);
         }
 
-        public void BeginPrint()
+        private void BeginPrint()
         {
             DTE dte = (DTE)GetService(typeof(DTE));
             Window outputWindow = dte.Windows.Item(EnvDTE.Constants.vsWindowKindOutput);
@@ -88,10 +88,53 @@ namespace XMake.VisualStudio
             _vsOutputWindow.Activate();
         }
 
-        public void Print(string message)
+        private void Print(string message)
         {
             if(_vsOutputWindow != null)
                 _vsOutputWindow.OutputString(message + "\r\n");
+        }
+
+        private void CommandFinished(XMakePlugin.CommandType type)
+        {
+            WaitToFinishCommandAsync(type);
+        }
+
+        private async Task WaitToFinishCommandAsync(XMakePlugin.CommandType type)
+        {
+            await this.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            XMakeToolWindow window = FindToolWindow(typeof(XMakeToolWindow), 0, true) as XMakeToolWindow;
+            IVsWindowFrame windowFrame = (IVsWindowFrame)window.Frame;
+            if (windowFrame.IsVisible() != 0)
+                return;
+
+            XMakeToolWindowControl control = (XMakeToolWindowControl)window.Content;
+            switch (type)
+            {
+                case XMakePlugin.CommandType.None:
+                    break;
+                case XMakePlugin.CommandType.QuickStart:
+                    XMakePlugin.LoadTargets();
+                    control.ResetTarget();
+                    break;
+                case XMakePlugin.CommandType.Run:
+                    break;
+                case XMakePlugin.CommandType.Build:
+                    XMakePlugin.LoadTargets();
+                    control.ResetTarget();
+                    break;
+                case XMakePlugin.CommandType.Clean:
+                case XMakePlugin.CommandType.CleanConfig:
+                    XMakePlugin.LoadConfig();
+                    control.ResetConfig();
+                    XMakePlugin.LoadTargets();
+                    control.ResetTarget();
+                    break;
+                case XMakePlugin.CommandType.UpdateCMake:
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void Init(string folderPath)
@@ -111,6 +154,7 @@ namespace XMake.VisualStudio
 
                         XMakePlugin.BeginOutput += BeginPrint;
                         XMakePlugin.Output += Print;
+                        XMakePlugin.CommandFinished += CommandFinished;
                     }
                     catch (Exception ex)
                     {
