@@ -303,7 +303,14 @@ namespace XMake.VisualStudio
 
         public static void Clean(Action finish)
         {
-            RunCommand("f c -y", finish);
+            if (string.IsNullOrEmpty(_target))
+                return;
+
+            string command = "c";
+            if (_target != "default")
+                command += " " + _target;
+
+            RunCommand(command);
         }
 
         public static void CleanConfig(Action finish)
