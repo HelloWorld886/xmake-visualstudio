@@ -321,8 +321,14 @@ namespace XMake.VisualStudio
 
         public static void Clean()
         {
+            if (string.IsNullOrEmpty(_target))
+                return;
+
+            string command = "c";
+            if (_target != "default")
+                command += " " + _target;
             _commandType = CommandType.Clean;
-            RunCommand("f c -y");
+            RunCommand(command);
         }
 
         public static void CleanConfig()

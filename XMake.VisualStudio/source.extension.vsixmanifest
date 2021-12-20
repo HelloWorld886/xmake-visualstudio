@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="XMake.VisualStudio.2164b525-bd39-4306-808b-1123ed9cb39d" Version="1.1" Language="en-US" Publisher="涛 刘" />
+        <Identity Id="XMake.VisualStudio.2164b525-bd39-4306-808b-1123ed9cb39d" Version="1.2" Language="en-US" Publisher="涛 刘" />
         <DisplayName>XMake.VisualStudio</DisplayName>
         <Description xml:space="preserve">XMake VSIX Plugin.</Description>
         <Icon>Icon.png</Icon>
