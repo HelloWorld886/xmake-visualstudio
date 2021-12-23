@@ -18,7 +18,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <StackPanel x:Name="RootNode" Orientation="Vertical" Margin="0,0,0,0">
+    <StackPanel x:Name="RootNode" Orientation="Vertical" Margin="0,0,0,0" CanVerticallyScroll="True">
         <Grid x:Name="grid" Margin="10,10,10,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"></ColumnDefinition>
@@ -53,6 +53,6 @@
         <Button x:Name="Run" Content="Run" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="Run_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
         <Button x:Name="Clean" Content="Clean" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="Clean_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
         <Button x:Name="CleanConfig" Content="Clean Config" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="CleanConfig_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
-        <Button x:Name="CMake" Content="Update CMakeList" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="CMake_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
+        <Button x:Name="Intellisense" Content="Update Intellisense" Margin="10,5,10,5" VerticalAlignment="Center" Height="30" Click="Intellisense_Click" Style="{DynamicResource {x:Static vsshell:VsResourceKeys.ButtonStyleKey}}"></Button>
     </StackPanel>
 </UserControl>

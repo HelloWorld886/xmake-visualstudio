@@ -55,9 +55,7 @@
     <Compile Include="XMakePlugin.cs" />
     <Compile Include="XMakeCommand.cs" />
     <Compile Include="XMakePluginPackage.cs" />
-    <Compile Include="XMakeSettingsDialog.xaml.cs">
-      <DependentUpon>XMakeSettingsDialog.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="XMakeService.cs" />
     <Compile Include="XMakeToolWindow.cs" />
     <Compile Include="XMakeToolWindowControl.xaml.cs">
       <DependentUpon>XMakeToolWindowControl.xaml</DependentUpon>
@@ -110,10 +108,6 @@
     <Content Include="Resources\XMakeToolWindowCommand.png" />
   </ItemGroup>
   <ItemGroup>
-    <Page Include="XMakeSettingsDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="XMakeToolWindowControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

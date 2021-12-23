@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows;
@@ -12,54 +13,24 @@ namespace XMake.VisualStudio
     /// </summary>
     public partial class XMakeToolWindowControl : UserControl
     {
+
+        internal Action<string> modeChanged;
+        internal Action<string> platChanged;
+        internal Action<string> archChanged;
+        internal Action<string> targetChanged;
+        internal Action quickStart;
+        internal Action build;
+        internal Action run;
+        internal Action clean;
+        internal Action cleanConfig;
+        internal Action updateIntellisense;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="XMakeToolWindowControl"/> class.
         /// </summary>
-        public XMakeToolWindowControl(XMakePluginPackage package)
+        public XMakeToolWindowControl()
         {
             this.InitializeComponent();
-            SetEnable(!string.IsNullOrEmpty(XMakePlugin.ProjectDir));
-
-
-            foreach (var item in XMakePlugin.Platforms)
-            {
-                PlatformComboBox.Items.Add(item);
-            }
-
-            foreach (var item in XMakePlugin.Archs)
-            {
-                ArchComboBox.Items.Add(item);
-            }
-
-            foreach (var item in XMakePlugin.Modes)
-            {
-                ModeComboBox.Items.Add(item);
-            }
-
-            ResetConfig();
-            ResetTarget();
-        }
-
-        public void SetEnable(bool isEnable)
-        {
-            RootNode.IsEnabled = isEnable;
-        }
-
-        public void ResetConfig()
-        {
-            PlatformComboBox.SelectedItem = XMakePlugin.GetOption("platform");
-            ArchComboBox.SelectedItem = XMakePlugin.GetOption("arch");
-            ModeComboBox.SelectedItem = XMakePlugin.GetOption("mode");
-        }
-
-        public void ResetTarget()
-        {
-            TargetComboBox.Items.Clear();
-            foreach (var item in XMakePlugin.Targets)
-            {
-                TargetComboBox.Items.Add(item);
-            }
-            TargetComboBox.SelectedItem = XMakePlugin.Target;
         }
 
         private void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -67,7 +38,7 @@ namespace XMake.VisualStudio
             if (ModeComboBox.SelectedItem == null)
                 return;
 
-            XMakePlugin.SetOption("mode", ModeComboBox.SelectedItem.ToString());
+            modeChanged.Invoke(ModeComboBox.SelectedItem.ToString());
         }
 
         private void PlatformComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -75,7 +46,7 @@ namespace XMake.VisualStudio
             if (PlatformComboBox.SelectedItem == null)
                 return;
 
-            XMakePlugin.SetOption("platform", PlatformComboBox.SelectedItem.ToString());
+            platChanged.Invoke(PlatformComboBox.SelectedItem.ToString());
         }
 
         private void ArchComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -83,7 +54,7 @@ namespace XMake.VisualStudio
             if (ArchComboBox.SelectedItem == null)
                 return;
 
-            XMakePlugin.SetOption("arch", ArchComboBox.SelectedItem.ToString());
+            archChanged.Invoke(ArchComboBox.SelectedItem.ToString());
         }
 
         private void TargetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -91,37 +62,37 @@ namespace XMake.VisualStudio
             if (TargetComboBox.SelectedItem == null)
                 return;
 
-            XMakePlugin.Target = TargetComboBox.SelectedItem.ToString();
+            targetChanged.Invoke(TargetComboBox.SelectedItem.ToString());
         }
 
         private void Build_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.Build();
+            build.Invoke();
         }
 
         private void Run_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.Run();
+            run.Invoke();
         }
 
         private void Clean_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.Clean();
+            clean.Invoke();
         }
 
         private void CleanConfig_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.CleanConfig();
+            cleanConfig.Invoke();
         }
 
-        private void CMake_Click(object sender, RoutedEventArgs e)
+        private void Intellisense_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.UpdateCMake();
+            updateIntellisense.Invoke();
         }
 
         private void QuickStart_Click(object sender, RoutedEventArgs e)
         {
-            XMakePlugin.QuickStart();
+            quickStart.Invoke();
         }
 
 

@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Task = System.Threading.Tasks.Task;
 
 namespace XMake.VisualStudio
@@ -36,14 +37,12 @@ namespace XMake.VisualStudio
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
     [ProvideToolWindow(typeof(XMake.VisualStudio.XMakeToolWindow))]
     [ComVisible(true)]
-    public sealed class XMakePluginPackage : AsyncPackage, IVsSolutionEvents7, IVsSolutionEvents
+    public sealed class XMakePluginPackage : AsyncPackage
     {
         /// <summary>
         /// XMakeCommandPackage GUID string.
         /// </summary>
         public const string PackageGuidString = "f015d5ab-25d8-4ed3-8a3c-38fce53a0baf";
-
-        private IVsOutputWindowPane _vsOutputWindow;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="XMakePluginPackage"/> class.
@@ -67,206 +66,44 @@ namespace XMake.VisualStudio
         /// <returns>A task representing the async work of package initialization, or an already completed task if there is none. Do not return null from this method.</returns>
         protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
+            AddService(typeof(XMakeService), CreateXMakeAsync);
             // When initialized asynchronously, the current thread may be a background thread at this point.
             // Do any initialization that requires the UI thread after switching to the UI thread.
             await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             await XMakeCommand.InitializeAsync(this);
         }
 
-        private void BeginPrint()
+        private async Task<object> CreateXMakeAsync(IAsyncServiceContainer container, CancellationToken cancellationToken, Type serviceType)
         {
-            DTE dte = (DTE)GetService(typeof(DTE));
-            Window outputWindow = dte.Windows.Item(EnvDTE.Constants.vsWindowKindOutput);
-            outputWindow.Activate();
-
-            IVsOutputWindow vso = GetService(typeof(SVsOutputWindow)) as IVsOutputWindow;
-            Assumes.Present(vso);
-            Guid paneGuid = new Guid("f015d5ab-25d8-4ed3-8a3c-38fce53a0baf");
-            vso.CreatePane(ref paneGuid, "XMake", 1, 1);
-
-            vso.GetPane(ref paneGuid, out _vsOutputWindow);
-            _vsOutputWindow.Activate();
-        }
-
-        private void Print(string message)
-        {
-            if(_vsOutputWindow != null)
-                _vsOutputWindow.OutputString(message + "\r\n");
-        }
-
-        private void CommandFinished(XMakePlugin.CommandType type)
-        {
-            WaitToFinishCommandAsync(type);
-        }
-
-        private async Task WaitToFinishCommandAsync(XMakePlugin.CommandType type)
-        {
-            await this.JoinableTaskFactory.SwitchToMainThreadAsync();
-
-            XMakeToolWindow window = FindToolWindow(typeof(XMakeToolWindow), 0, true) as XMakeToolWindow;
-            IVsWindowFrame windowFrame = (IVsWindowFrame)window.Frame;
-            if (windowFrame.IsVisible() != 0)
-                return;
-
-            XMakeToolWindowControl control = (XMakeToolWindowControl)window.Content;
-            switch (type)
-            {
-                case XMakePlugin.CommandType.None:
-                    break;
-                case XMakePlugin.CommandType.QuickStart:
-                    XMakePlugin.LoadTargets();
-                    control.ResetTarget();
-                    break;
-                case XMakePlugin.CommandType.Run:
-                    break;
-                case XMakePlugin.CommandType.Build:
-                    XMakePlugin.LoadTargets();
-                    control.ResetTarget();
-                    break;
-                case XMakePlugin.CommandType.Clean:
-                case XMakePlugin.CommandType.CleanConfig:
-                    XMakePlugin.LoadConfig();
-                    control.ResetConfig();
-                    XMakePlugin.LoadTargets();
-                    control.ResetTarget();
-                    break;
-                case XMakePlugin.CommandType.UpdateCMake:
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        private void Init(string folderPath)
-        {
-            string[] files = Directory.GetFiles(folderPath, "xmake.lua", SearchOption.AllDirectories).Where(a => !a.Contains(".xmake")).ToArray();
-            foreach (string file in files)
-            {
-                if (File.Exists(file))
-                {
-                    FileInfo fileInfo = new FileInfo(file);
-                    XMakePlugin.ProjectDir = fileInfo.Directory.FullName;
-                    bool valid = true;
-                    try
-                    {
-                        XMakePlugin.LoadConfig();
-                        XMakePlugin.LoadTargets();
-
-                        XMakePlugin.BeginOutput += BeginPrint;
-                        XMakePlugin.Output += Print;
-                        XMakePlugin.CommandFinished += CommandFinished;
-                    }
-                    catch (Exception ex)
-                    {
-                        valid = false;
-                        BeginPrint();
-                        Print(ex.StackTrace);
-                    }
-
-                    if (valid)
-                    {
-                        XMakeToolWindow window = FindToolWindow(typeof(XMakeToolWindow), 0, true) as XMakeToolWindow;
-                        IVsWindowFrame windowFrame = (IVsWindowFrame)window.Frame;
-                        if (windowFrame.IsVisible() == 0)
-                        {
-                            XMakeToolWindowControl control = (XMakeToolWindowControl)window.Content;
-                            control.SetEnable(true);
-                            control.ResetConfig();
-                            control.ResetTarget();
-                        }
-                    }
-                    break;
-                }
-            }
+            var svc = new XMakeService();
+            await svc.InitializeAsync(this, cancellationToken);
+            return svc;
         }
 
         protected override async Task OnAfterPackageLoadedAsync(CancellationToken cancellationToken)
         {
+            XMakeService service = await GetServiceAsync(typeof(XMakeService)) as XMakeService;
+            if (service != null)
+                await service.OnAfterPackageLoadedAsync(cancellationToken);
+
             await base.OnAfterPackageLoadedAsync(cancellationToken);
 
-            IVsSolution solution = GetService(typeof(SVsSolution)) as IVsSolution;
-            solution.GetSolutionInfo(out string directory, out string solutionFile, out string optsFile);
-            if(directory == null)
-            {
-                solution.AdviseSolutionEvents(this, out uint cookie);
-            }
-            else if(Directory.Exists(solutionFile) && Directory.Exists(directory))
-            {
-                await this.JoinableTaskFactory.SwitchToMainThreadAsync();
-
-                Init(directory);
-            }
         }
 
-        public void OnAfterOpenFolder(string folderPath)
+        public override IVsAsyncToolWindowFactory GetAsyncToolWindowFactory(Guid toolWindowType)
         {
-            Init(folderPath);
+            return toolWindowType.Equals(Guid.Parse(XMakeToolWindow.WindowGuidString)) ? this : null;
         }
 
-        public void OnBeforeCloseFolder(string folderPath)
+        protected override string GetToolWindowTitle(Type toolWindowType, int id)
         {
+            return toolWindowType == typeof(XMakeToolWindow) ? XMakeToolWindow.Title : base.GetToolWindowTitle(toolWindowType, id);
         }
 
-        public void OnQueryCloseFolder(string folderPath, ref int pfCancel)
+        protected override async Task<object> InitializeToolWindowAsync(Type toolWindowType, int id, CancellationToken cancellationToken)
         {
-        }
-
-        public void OnAfterCloseFolder(string folderPath)
-        {
-        }
-
-        public void OnAfterLoadAllDeferredProjects()
-        {
-        }
-
-        public int OnAfterOpenProject(IVsHierarchy pHierarchy, int fAdded)
-        {
-            return 0;
-        }
-
-        public int OnQueryCloseProject(IVsHierarchy pHierarchy, int fRemoving, ref int pfCancel)
-        {
-            return 0;
-        }
-
-        public int OnBeforeCloseProject(IVsHierarchy pHierarchy, int fRemoved)
-        {
-            return 0;
-        }
-
-        public int OnAfterLoadProject(IVsHierarchy pStubHierarchy, IVsHierarchy pRealHierarchy)
-        {
-            return 0;
-        }
-
-        public int OnQueryUnloadProject(IVsHierarchy pRealHierarchy, ref int pfCancel)
-        {
-            return 0;
-        }
-
-        public int OnBeforeUnloadProject(IVsHierarchy pRealHierarchy, IVsHierarchy pStubHierarchy)
-        {
-            return 0;
-        }
-
-        public int OnAfterOpenSolution(object pUnkReserved, int fNewSolution)
-        {
-            return 0;
-        }
-
-        public int OnQueryCloseSolution(object pUnkReserved, ref int pfCancel)
-        {
-            return 0;
-        }
-
-        public int OnBeforeCloseSolution(object pUnkReserved)
-        {
-            return 0;
-        }
-
-        public int OnAfterCloseSolution(object pUnkReserved)
-        {
-            return 0;
+            XMakeService service = await GetServiceAsync(typeof(XMakeService)) as XMakeService;
+            return service;
         }
 
         #endregion

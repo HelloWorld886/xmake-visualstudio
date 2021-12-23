@@ -81,19 +81,17 @@ namespace XMake.VisualStudio
 
         private void Execute(object sender, EventArgs e)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
-            // Get the instance number 0 of this tool window. This window is single instance so this instance
-            // is actually the only one.
-            // The last flag is set to true so that if the tool window does not exists it will be created.
-            ToolWindowPane window = this.package.FindToolWindow(typeof(XMakeToolWindow), 0, true);
-            if ((null == window) || (null == window.Frame))
+            package.JoinableTaskFactory.RunAsync(async () =>
             {
-                throw new NotSupportedException("Cannot create tool window");
-            }
+                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            IVsWindowFrame windowFrame = (IVsWindowFrame)window.Frame;
-            Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(windowFrame.Show());
+                ToolWindowPane window = await package.FindToolWindowAsync(
+                    typeof(XMakeToolWindow),
+                    0,
+                    create: true,
+                    cancellationToken: package.DisposalToken);
+                ((IVsWindowFrame)window.Frame).Show();
+            });
         }
     }
 }
