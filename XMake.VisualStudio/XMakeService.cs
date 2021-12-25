@@ -41,6 +41,7 @@ namespace XMake.VisualStudio
     {
         private static string _updateIntellisense = @"""import('core.project.config')
 import('core.project.project')
+import('core.project.rule')
 config.load()
 for k,t in pairs(project:targets()) do
     local name = t:name() or ''
@@ -66,6 +67,29 @@ for k,t in pairs(project:targets()) do
 		includes = includes == '' and includedirs or (includes .. ',' .. includedirs)
     elseif type(includedirs) == 'table' then
 		for k, p in pairs(includedirs) do
+			includes = includes == '' and p or (includes .. ',' .. p)
+        end
+    end
+	local rules = t:get('rules')
+	if type(rules) == 'string' then
+		local on_config = rules:script('config')
+		if on_config then
+			utils.trycall(on_config, nil, t)
+		end
+    elseif type(rules) == 'table' then
+		for k, r in pairs(rules) do
+			local rule = rule.rule(r)
+			local on_config = rule:script('config')
+			if on_config then
+				utils.trycall(on_config, nil, t)
+			end
+        end
+    end
+    local sysincludedirs = t:get('sysincludedirs')
+	if type(sysincludedirs) == 'string' then
+		includes = includes == '' and sysincludedirs or (includes .. ',' .. sysincludedirs)
+    elseif type(sysincludedirs) == 'table' then
+		for k, p in pairs(sysincludedirs) do
 			includes = includes == '' and p or (includes .. ',' .. p)
         end
     end
