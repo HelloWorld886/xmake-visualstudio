@@ -36,7 +36,6 @@ namespace XMake.VisualStudio
     [Guid(XMakePluginPackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
     [ProvideToolWindow(typeof(XMake.VisualStudio.XMakeToolWindow))]
-    [ComVisible(true)]
     public sealed class XMakePluginPackage : AsyncPackage
     {
         /// <summary>

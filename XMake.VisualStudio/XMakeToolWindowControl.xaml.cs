@@ -24,6 +24,7 @@ namespace XMake.VisualStudio
         internal Action clean;
         internal Action cleanConfig;
         internal Action updateIntellisense;
+        internal Action updateLaunch;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="XMakeToolWindowControl"/> class.
@@ -88,6 +89,11 @@ namespace XMake.VisualStudio
         private void Intellisense_Click(object sender, RoutedEventArgs e)
         {
             updateIntellisense.Invoke();
+        }
+
+        private void Launch_Click(object sender, RoutedEventArgs e)
+        {
+            updateLaunch.Invoke();
         }
 
         private void QuickStart_Click(object sender, RoutedEventArgs e)

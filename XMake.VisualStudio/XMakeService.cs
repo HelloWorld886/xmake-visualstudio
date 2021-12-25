@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Resources;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -14,11 +15,75 @@ using System.Threading.Tasks;
 
 namespace XMake.VisualStudio
 {
+    internal struct Intellisense
+    {
+        public string name;
+        public List<string> inheritEnvironments;
+        public List<string> includePath;
+        public List<string> defines;
+        public string intelliSenseMode;
+    }
+
+    internal struct Launch
+    {
+        public string type;
+        public string name;
+        public string project;
+        public string cwd;
+        public string program;
+        public string MIMode;
+        public string miDebuggerPath;
+        public bool externalConsole;
+    }
+
     [ComVisible(true)]
     public class XMakeService : IVsSolutionEvents7, IVsSolutionEvents
     {
-        private XMakePluginPackage _package;
+        private static string _updateIntellisense = @"""import('core.project.config')
+import('core.project.project')
+config.load()
+for k,t in pairs(project:targets()) do
+    local name = t:name() or ''
+    local define = ''
+	local defines = t:get('defines') or ''
+	if type(defines) == 'string' then
+		define = defines
+    elseif type(defines) == 'table' then
+		for k, p in pairs(defines) do
+			define = define == '' and p or (define.. ',' .. p)
+        end
+    end
+    local arch = t:get('arch') or 'x86'
+	local includes = ''
+	for k, p in pairs(t:pkgs()) do
+		local dir = p:get('sysincludedirs')
+		if dir then
+			includes = includes == '' and dir or (includes .. ',' .. dir)
+		end
+	end
+    local includedirs = t:get('includedirs')
+	if type(includedirs) == 'string' then
+		includes = includes == '' and includedirs or (includes .. ',' .. includedirs)
+    elseif type(includedirs) == 'table' then
+		for k, p in pairs(includedirs) do
+			includes = includes == '' and p or (includes .. ',' .. p)
+        end
+    end
+    print(string.format('name=%s|define=%s|arch=%s|includes=%s', name, define, arch, includes))
+end""";
 
+        private static string _updateLaunch = @"""
+import('core.project.config')
+import('core.project.project')
+config.load()
+for k,t in pairs(project:targets()) do
+	if t:is_binary() then
+        print(t:targetfile())
+    end
+end
+""";
+
+        private XMakePluginPackage _package;
         private List<string> _allTargets = new List<string>() { "default" };
         private string[] _allModes = new string[]
             {
@@ -41,14 +106,14 @@ namespace XMake.VisualStudio
         private string _plat;
         private string _arch;
 
-        public string ProjDir 
-        { 
+        public string ProjDir
+        {
             get => _projDir;
         }
 
-        public string Target 
-        { 
-            get => _target; 
+        public string Target
+        {
+            get => _target;
             set => _target = value;
         }
         public string[] AllModes { get => _allModes; }
@@ -65,6 +130,20 @@ namespace XMake.VisualStudio
 
         public string Arch { get => _arch; set => _arch = value; }
 
+        public string CppProperties { 
+            get
+            {
+                return Path.Combine(_projDir, "CppProperties.json");
+            } 
+        }
+
+        public string LaunchVS
+        {
+            get
+            {
+                return Path.Combine(_projDir, "Launch.vs.json");
+            }
+        }
 
         public void QuickStart()
         {
@@ -128,11 +207,134 @@ namespace XMake.VisualStudio
             });
         }
 
+        public void UpdateIntellisense()
+        {
+            _package.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await RunCommandAsync("f -y");
+                await RefreshTargetAsync();
+
+                string result = await RunScriptAsync(_updateIntellisense);
+                result = result.Trim();
+                Dictionary<string, Intellisense[]> intellisenseDict = new Dictionary<string, Intellisense[]>();
+                Intellisense intellisense = new Intellisense()
+                {
+                    name = "",
+                    inheritEnvironments = new List<string>(1) { "msvc_" + _arch },
+                    includePath = new List<string>(2) {"${env.INCLUDE}", "${workspaceRoot}\\**"},
+                    defines = new List<string>(),
+                    intelliSenseMode = "windows-msvc-" + _arch
+                };
+                DirectoryInfo directoryInfo = new DirectoryInfo(_projDir);
+                intellisense.name = directoryInfo.Name;
+                intellisenseDict.Add("configurations", new Intellisense[] { intellisense});
+                using (StringReader reader = new StringReader(result))
+                {
+                    while (reader.Peek() > -1)
+                    {
+                        string line = await reader.ReadLineAsync();
+                        line = line.Trim();
+                        if (string.IsNullOrEmpty(line))
+                            continue;
+                        string[] fields = line.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+                        for (int i = 0; i < fields.Length; i++)
+                        {
+                            string field = fields[i].Trim();
+                            string[] kv = field.Split(new char[] { '=' });
+                            if (kv.Length != 2)
+                                continue;
+                            switch (kv[0])
+                            {
+                                case "includes":
+                                    string includes = kv[1].Trim();
+                                    if (!string.IsNullOrEmpty(includes))
+                                    {
+                                        string[] includePaths = includes.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                        intellisense.includePath.AddRange(includePaths);
+                                    }
+                                    break;
+                                case "define":
+                                    string define = kv[1].Trim();
+                                    if (!string.IsNullOrEmpty(define))
+                                    {
+                                        string[] defines = define.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                        intellisense.defines.AddRange(defines);
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(intellisenseDict);
+                try
+                {
+                    File.WriteAllText(CppProperties, json, Encoding.UTF8);
+                }
+                catch (Exception ex)
+                {
+                    await PrintAsync(ex.Message);
+                }
+            });
+
+        }
+
+        public void UpdateLaunch()
+        {
+            _package.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await RunCommandAsync("f -y");
+                await RefreshTargetAsync();
+
+                string result = await RunScriptAsync(_updateLaunch);
+                result = result.Trim();
+                Dictionary<string, object> lanuchDict = new Dictionary<string, object>();
+                lanuchDict.Add("version", "0.2.1");
+                lanuchDict.Add("defaults", new Dictionary<string, string>());
+                List<Launch> launches = new List<Launch>(0);
+                lanuchDict.Add("configurations", launches);
+                using (StringReader reader = new StringReader(result))
+                {
+                    while (reader.Peek() > -1)
+                    {
+                        string line = await reader.ReadLineAsync();
+                        line = line.Trim();
+                        if (string.IsNullOrEmpty(line))
+                            continue;
+
+                        string targetFile = Path.Combine(_projDir, line);
+                        Launch launch = new Launch()
+                        {
+                            name = Path.GetFileName(targetFile),
+                            type = "cppvsdbg",
+                            project = targetFile,
+                            cwd = Path.GetDirectoryName(targetFile),
+                            program = targetFile,
+                            MIMode = "gdb",
+                            miDebuggerPath = "",
+                            externalConsole = true,
+                        };
+                        launches.Add(launch);
+                    }
+                }
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(lanuchDict);
+                try
+                {
+                    File.WriteAllText(LaunchVS, json, Encoding.UTF8);
+                }
+                catch (Exception ex)
+                {
+                    await PrintAsync(ex.Message);
+                }
+            });
+        }
+
         public void UpdateConfig()
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                await RunCommandAsync(string.Format("f -p -y {0} -a {1} -m {2}", _plat, _arch, _mode));
+                await RunCommandAsync(string.Format("f -p {0} -a {1} -m {2}", _plat, _arch, _mode));
             });
         }
 
@@ -176,102 +378,71 @@ namespace XMake.VisualStudio
             }
         }
 
-        private void LoadConfig()
+        private async Task LoadConfigAsync()
         {
             if (string.IsNullOrEmpty(_projDir))
                 return;
 
+
+            string result = await RunScriptAsync("\"import(\\\"core.project.config\\\"); config.load(); print(\\\"$(plat) $(arch) $(mode)\\\")\"");
             string[] cache = null;
-            using (var proc = new System.Diagnostics.Process())
+            if (!string.IsNullOrEmpty(result))
             {
-                proc.StartInfo.WorkingDirectory = _projDir;
-                proc.StartInfo.FileName = "xmake";
-                proc.StartInfo.Arguments = "l -c \"import(\\\"core.project.config\\\"); config.load(); print(\\\"$(plat) $(arch) $(mode)\\\")\"";
-                proc.StartInfo.UseShellExecute = false;
-                proc.StartInfo.RedirectStandardOutput = true;
-                proc.StartInfo.CreateNoWindow = true;
-                proc.StartInfo.RedirectStandardError = true;
-                proc.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
-                proc.StartInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
-                if (!proc.Start())
-                    return;
-
-                string result = proc.StandardOutput.ReadToEnd();
-
-                if (!string.IsNullOrEmpty(result))
-                {
-                    Regex regex = new Regex("\u001B\\[[;\\d]*m");
-                    result = regex.Replace(result, "");
-                    cache = result.Trim().Split(' ');
-                }
-
-                string platform = cache != null && cache.Length > 0 && !string.IsNullOrEmpty(cache[0]) ? cache[0] : null;
-                if (!string.IsNullOrEmpty(platform))
-                    _plat = platform;
-                else
-                    _plat = _allPlats[0];
-
-                string arch = cache != null && cache.Length > 1 && !string.IsNullOrEmpty(cache[1]) ? cache[1] : null;
-                if (!string.IsNullOrEmpty(arch))
-                    _arch = arch;
-                else
-                    _arch = _allArchs[0];
-
-                string mode = cache != null && cache.Length > 2 && !string.IsNullOrEmpty(cache[2]) ? cache[2] : null;
-                if (!string.IsNullOrEmpty(mode))
-                    _mode = mode;
-                else
-                    _mode = _allModes[0];
+                Regex regex = new Regex("\u001B\\[[;\\d]*m");
+                result = regex.Replace(result, "");
+                cache = result.Trim().Split(' ');
             }
+
+            string platform = cache != null && cache.Length > 0 && !string.IsNullOrEmpty(cache[0]) ? cache[0] : null;
+            if (!string.IsNullOrEmpty(platform))
+                _plat = platform;
+            else
+                _plat = _allPlats[0];
+
+            string arch = cache != null && cache.Length > 1 && !string.IsNullOrEmpty(cache[1]) ? cache[1] : null;
+            if (!string.IsNullOrEmpty(arch))
+                _arch = arch;
+            else
+                _arch = _allArchs[0];
+
+            string mode = cache != null && cache.Length > 2 && !string.IsNullOrEmpty(cache[2]) ? cache[2] : null;
+            if (!string.IsNullOrEmpty(mode))
+                _mode = mode;
+            else
+                _mode = _allModes[0];
         }
 
-        private void LoadTarget()
+        private async Task LoadTargetAsync()
         {
             if (string.IsNullOrEmpty(_projDir))
                 return;
 
             _allTargets.Clear();
             _allTargets.Add("default");
-            using (var proc = new System.Diagnostics.Process())
+            string result = await RunScriptAsync("\"import(\\\"core.project.config\\\"); import(\\\"core.project.project\\\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end\"");
+            if (!string.IsNullOrEmpty(result))
             {
-                proc.StartInfo.WorkingDirectory = _projDir;
-                proc.StartInfo.FileName = "xmake";
-                proc.StartInfo.Arguments = "l -c \"import(\\\"core.project.config\\\"); import(\\\"core.project.project\\\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end\"";
-                proc.StartInfo.UseShellExecute = false;
-                proc.StartInfo.RedirectStandardOutput = true;
-                proc.StartInfo.CreateNoWindow = true;
-                proc.StartInfo.RedirectStandardError = true;
-                proc.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
-                proc.StartInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
-                if (!proc.Start())
-                    return;
-
-                string result = proc.StandardOutput.ReadToEnd();
-                if (!string.IsNullOrEmpty(result))
+                Regex regex = new Regex("\u001B\\[[;\\d]*m");
+                result = regex.Replace(result, "");
+                string[] targets = result.Trim().Split('\n');
+                bool find = false;
+                foreach (var item in targets)
                 {
-                    Regex regex = new Regex("\u001B\\[[;\\d]*m");
-                    result = regex.Replace(result, "");
-                    string[] targets = result.Trim().Split('\n');
-                    bool find = false;
-                    foreach (var item in targets)
-                    {
-                        if (string.IsNullOrEmpty(item))
-                            continue;
+                    if (string.IsNullOrEmpty(item))
+                        continue;
 
-                        string t = item.Trim();
-                        _allTargets.Add(t);
+                    string t = item.Trim();
+                    _allTargets.Add(t);
 
-                        if (!find && _target != null && _target == t)
-                            find = true;
-                    }
+                    if (!find && _target != null && _target == t)
+                        find = true;
+                }
 
-                    if (!find)
-                    {
-                        _target = _allTargets.Count > 1 ? _allTargets[1] : _allTargets[0];
-                    }
+                if (!find)
+                {
+                    _target = _allTargets.Count > 1 ? _allTargets[1] : _allTargets[0];
                 }
             }
-
         }
 
         private async Task PrintAsync(string msg)
@@ -322,65 +493,77 @@ namespace XMake.VisualStudio
             proc.BeginErrorReadLine();
         }
 
+        private async Task<string> RunScriptAsync(string script)
+        {
+            if (string.IsNullOrEmpty(_projDir))
+                return "";
+
+            string result = "";
+            using (var proc = new System.Diagnostics.Process())
+            {
+                proc.StartInfo.WorkingDirectory = _projDir;
+                proc.StartInfo.FileName = "xmake";
+                proc.StartInfo.Arguments = "lua -c " + script;
+                proc.StartInfo.UseShellExecute = false;
+                proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.CreateNoWindow = true;
+                proc.StartInfo.RedirectStandardError = true;
+                proc.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
+                proc.StartInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
+                if (proc.Start())
+                    result = await proc.StandardOutput.ReadToEndAsync();
+            }
+
+            return result;
+        }
+
         private async Task RefreshTargetAsync()
         {
-            await _package.JoinableTaskFactory.RunAsync(async () =>
+            await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            await LoadTargetAsync();
+            XMakeToolWindow window = await _package.FindToolWindowAsync(typeof(XMakeToolWindow),
+                0,
+                true,
+                _package.DisposalToken) as XMakeToolWindow;
+            if (window != null)
             {
-                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-
-                LoadTarget();
-
-                XMakeToolWindow window = await _package.FindToolWindowAsync(typeof(XMakeToolWindow),
-                    0,
-                    true,
-                    _package.DisposalToken) as XMakeToolWindow;
-                if (window != null)
-                {
-                    ((IVsWindowFrame)window.Frame).Show();
-                    window.RefreshTarget();
-                }
-            });
+                ((IVsWindowFrame)window.Frame).Show();
+                window.RefreshTarget();
+            }
         }
 
         private async Task RefreshConfigAsync()
         {
-            await _package.JoinableTaskFactory.RunAsync(async () =>
-            {
-                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                LoadConfig();
+            await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            await LoadConfigAsync();
 
-                XMakeToolWindow window = await _package.FindToolWindowAsync(typeof(XMakeToolWindow),
-                    0,
-                    true,
-                    _package.DisposalToken) as XMakeToolWindow;
-                if (window != null)
-                {
-                    ((IVsWindowFrame)window.Frame).Show();
-                    window.RefreshConfig();
-                }
-            });
+            XMakeToolWindow window = await _package.FindToolWindowAsync(typeof(XMakeToolWindow),
+                0,
+                true,
+                _package.DisposalToken) as XMakeToolWindow;
+            if (window != null)
+            {
+                ((IVsWindowFrame)window.Frame).Show();
+                window.RefreshConfig();
+            }
         }
 
         private async Task RefreshAllAsync()
         {
-            await _package.JoinableTaskFactory.RunAsync(async () =>
+            await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            await LoadConfigAsync();
+            await LoadTargetAsync();
+            XMakeToolWindow window = await _package.FindToolWindowAsync(typeof(XMakeToolWindow),
+                0,
+                true,
+                _package.DisposalToken) as XMakeToolWindow;
+            if (window != null)
             {
-                await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                LoadConfig();
-                LoadTarget();
-
-                XMakeToolWindow window = await _package.FindToolWindowAsync(typeof(XMakeToolWindow),
-                    0,
-                    true,
-                    _package.DisposalToken) as XMakeToolWindow;
-                if (window != null)
-                {
-                    ((IVsWindowFrame)window.Frame).Show();
-                    window.RefreshEnable();
-                    window.RefreshConfig();
-                    window.RefreshTarget();
-                }
-            });
+                ((IVsWindowFrame)window.Frame).Show();
+                window.RefreshEnable();
+                window.RefreshConfig();
+                window.RefreshTarget();
+            }
         }
 
         private void Proc_ExitReceived(object sender, EventArgs e)
