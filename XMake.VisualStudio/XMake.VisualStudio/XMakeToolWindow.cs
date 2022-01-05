@@ -51,6 +51,7 @@ namespace XMake.VisualStudio
             _control.cleanConfig = CleanConfig;
             _control.updateIntellisense = UpdateIntellisense;
             _control.updateLaunch = UpdateLaunch;
+
             for (int i = 0; i < _service.AllModes.Length; i++)
             {
                 _control.ModeComboBox.Items.Add(_service.AllModes[i]);
@@ -132,34 +133,22 @@ namespace XMake.VisualStudio
 
         private void OnTargetChanged(string obj)
         {
-            bool change = _service.Target != obj;
             _service.Target = obj;
-            if (change)
-                _service.UpdateConfig();
         }
 
         private void OnModeChanged(string obj)
         {
-            bool change = _service.Mode != obj;
             _service.Mode = obj;
-            if (change)
-                _service.UpdateConfig();
         }
 
         private void OnArchChanged(string obj)
         {
-            bool change = _service.Arch != obj;
             _service.Arch = obj;
-            if (change)
-                _service.UpdateConfig();
         }
 
         private void OnPlatChanged(string obj)
         {
-            bool change = _service.Plat != obj;
             _service.Plat = obj;
-            if (change)
-                _service.UpdateConfig();
         }
     }
 }

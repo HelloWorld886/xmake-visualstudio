@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Task = System.Threading.Tasks.Task;
 
 namespace XMake.VisualStudio
 {
@@ -129,6 +130,7 @@ end
         private string _mode;
         private string _plat;
         private string _arch;
+        private bool _configChanged = false;
 
         public string ProjDir
         {
@@ -138,7 +140,12 @@ end
         public string Target
         {
             get => _target;
-            set => _target = value;
+            set
+            {
+                if (!string.IsNullOrEmpty(_target) && _target != value)
+                    _configChanged = true;
+                _target = value;
+            }
         }
         public string[] AllModes { get => _allModes; }
 
@@ -148,11 +155,38 @@ end
 
         public IReadOnlyList<string> AllTargets { get => _allTargets; }
 
-        public string Mode { get => _mode; set => _mode = value; }
+        public string Mode
+        { 
+            get => _mode; 
+            set
+            {
+                if (!string.IsNullOrEmpty(_mode) && _mode != value)
+                    _configChanged = true;
+                _mode = value;
+            }
+        }
 
-        public string Plat { get => _plat; set => _plat = value; }
+        public string Plat
+        {
+            get => _plat; 
+            set
+            {
+                if (!string.IsNullOrEmpty(_plat) && _plat != value)
+                    _configChanged = true;
+                _plat = value;
+            }
+        }
 
-        public string Arch { get => _arch; set => _arch = value; }
+        public string Arch
+        { 
+            get => _arch;
+            set
+            {
+                if (!string.IsNullOrEmpty(_arch) && _arch != value)
+                    _configChanged = true;
+                _arch = value;
+            }
+        }
 
         public string CppProperties { 
             get
@@ -173,8 +207,8 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                await RunCommandAsync("f -y");
-                await RefreshTargetAsync();
+                if(await RunCommandAsync("f -y") != -1)
+                    await RefreshTargetAsync();
             });
         }
 
@@ -190,8 +224,15 @@ end
                     command += " " + _target;
                 else
                     command += " -a";
-                await RunCommandAsync(command);
-                await RefreshTargetAsync();
+
+                if (_configChanged)
+                {
+                    await UpdateConfigAsync();
+                    _configChanged = false;
+                }
+
+                if(await RunCommandAsync(command) != -1)
+                    await RefreshTargetAsync();
             });
         }
 
@@ -217,8 +258,8 @@ end
                 if (_target != "default")
                     command += " " + _target;
 
-                await RunCommandAsync(command);
-                await RefreshAllAsync();
+                if (await RunCommandAsync(command) != -1)
+                    await RefreshAllAsync();
             });
         }
 
@@ -226,8 +267,8 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                await RunCommandAsync("f -c -y");
-                await RefreshAllAsync();
+                if(await RunCommandAsync("f -c -y") != -1)
+                    await RefreshAllAsync();
             });
         }
 
@@ -235,8 +276,8 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                await RunCommandAsync("f -y");
-                await RefreshTargetAsync();
+                if(await RunCommandAsync("f -y") != -1)
+                    await RefreshTargetAsync();
 
                 string result = await RunScriptAsync(_updateIntellisense);
                 result = result.Trim();
@@ -307,8 +348,8 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                await RunCommandAsync("f -y");
-                await RefreshTargetAsync();
+                if(await RunCommandAsync("f -y") != -1)
+                    await RefreshTargetAsync();
 
                 string result = await RunScriptAsync(_updateLaunch);
                 result = result.Trim();
@@ -354,12 +395,9 @@ end
             });
         }
 
-        public void UpdateConfig()
+        public Task<int> UpdateConfigAsync()
         {
-            _package.JoinableTaskFactory.RunAsync(async () =>
-            {
-                await RunCommandAsync(string.Format("f -p {0} -a {1} -m {2}", _plat, _arch, _mode));
-            });
+            return RunCommandAsync(string.Format("f -p {0} -a {1} -m {2} -y", _plat, _arch, _mode));
         }
 
         public async Task InitializeAsync(XMakePluginPackage package, CancellationToken cancellationToken)
@@ -489,12 +527,20 @@ end
                 vsOutputWindowPane.OutputString(msg + "\r\n");
         }
 
-        private async Task RunCommandAsync(string command)
+        private Task<int> RunCommandAsync(string command)
         {
-            if (string.IsNullOrEmpty(_projDir))
-                return;
+            var tcs = new TaskCompletionSource<int>();
 
-            await PrintAsync(command);
+            if (string.IsNullOrEmpty(_projDir))
+            {
+                tcs.SetResult(-1);
+                return tcs.Task;
+            }
+
+            _package.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await PrintAsync(command);
+            });
 
             var proc = new System.Diagnostics.Process();
             proc.StartInfo.WorkingDirectory = _projDir;
@@ -506,15 +552,29 @@ end
             proc.StartInfo.RedirectStandardError = true;
             proc.StartInfo.StandardOutputEncoding = Encoding.GetEncoding("GBK");
             proc.StartInfo.StandardErrorEncoding = Encoding.GetEncoding("GBK");
-            proc.StartInfo.RedirectStandardError = true;
-            proc.OutputDataReceived += Proc_OutputDataReceived;
-            proc.ErrorDataReceived += Proc_ErrorDataReceived;
+            proc.OutputDataReceived += (s, e)=>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    Regex regex = new Regex("\u001B\\[[;\\d]*m");
+                    string result = regex.Replace(e.Data, "");
+                    _package.JoinableTaskFactory.RunAsync(async () =>
+                    {
+                        await PrintAsync(result);
+                    });
+                }
+            };
             proc.EnableRaisingEvents = true;
-            proc.Exited += Proc_ExitReceived;
-
+            proc.Exited += (s, e)=>
+            {
+                tcs.SetResult(proc.ExitCode);
+                proc.Dispose();
+            };
             proc.Start();
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
+
+            return tcs.Task;
         }
 
         private async Task<string> RunScriptAsync(string script)
@@ -588,31 +648,6 @@ end
                 window.RefreshConfig();
                 window.RefreshTarget();
             }
-        }
-
-        private void Proc_ExitReceived(object sender, EventArgs e)
-        {
-            _package.JoinableTaskFactory.RunAsync(async () =>
-            {
-                await PrintAsync("xmake finish");
-            });
-        }
-
-        private void Proc_OutputDataReceived(object sender, DataReceivedEventArgs e)
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-            {
-                Regex regex = new Regex("\u001B\\[[;\\d]*m");
-                string result = regex.Replace(e.Data, "");
-                _package.JoinableTaskFactory.RunAsync(async () =>
-                {
-                    await PrintAsync(result);
-                });
-            }
-        }
-
-        private void Proc_ErrorDataReceived(object sender, DataReceivedEventArgs e)
-        {
         }
 
         public void OnAfterOpenFolder(string folderPath)
