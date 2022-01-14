@@ -67,7 +67,7 @@ for k,t in pairs(project:targets()) do
 		define = defines
     elseif type(defines) == 'table' then
 		for k, p in pairs(defines) do
-			define = define == '' and p or (define.. ',' .. p)
+			define = define == '' and p or (define.. ';' .. p)
         end
     end
     local arch = t:get('arch') or 'x86'
@@ -75,23 +75,35 @@ for k,t in pairs(project:targets()) do
 	for k, p in pairs(t:pkgs()) do
 		local dir = p:get('sysincludedirs')
 		if dir then
-			includes = includes == '' and dir or (includes .. ',' .. dir)
+			includes = includes == '' and dir or (includes .. ';' .. dir)
 		end
 	end
     local includedirs = t:get('includedirs')
 	if type(includedirs) == 'string' then
-		includes = includes == '' and includedirs or (includes .. ',' .. includedirs)
+		includes = includes == '' and includedirs or (includes .. ';' .. includedirs)
     elseif type(includedirs) == 'table' then
 		for k, p in pairs(includedirs) do
-			includes = includes == '' and p or (includes .. ',' .. p)
+			includes = includes == '' and p or (includes .. ';' .. p)
         end
     end
     local sysincludedirs = t:get('sysincludedirs')
 	if type(sysincludedirs) == 'string' then
-		includes = includes == '' and sysincludedirs or (includes .. ',' .. sysincludedirs)
+		includes = includes == '' and sysincludedirs or (includes .. ';' .. sysincludedirs)
     elseif type(sysincludedirs) == 'table' then
 		for k, p in pairs(sysincludedirs) do
-			includes = includes == '' and p or (includes .. ',' .. p)
+			includes = includes == '' and p or (includes .. ';' .. p)
+        end
+    end
+    local toolchains = t:toolchains()
+    if toolchains then
+		for k, toolchain in pairs(toolchains) do
+			local runenvs = toolchain:runenvs()
+            if runenvs then
+                local include = runenvs.INCLUDE
+                if include then
+                    includes = includes == '' and include or (includes .. ';' .. include)
+                end
+            end
         end
     end
     print(string.format('name=%s|define=%s|arch=%s|includes=%s', name, define, arch, includes))
@@ -314,7 +326,7 @@ end
                                     string includes = kv[1].Trim();
                                     if (!string.IsNullOrEmpty(includes))
                                     {
-                                        string[] includePaths = includes.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                        string[] includePaths = includes.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                                         intellisense.includePath.AddRange(includePaths);
                                     }
                                     break;
@@ -322,7 +334,7 @@ end
                                     string define = kv[1].Trim();
                                     if (!string.IsNullOrEmpty(define))
                                     {
-                                        string[] defines = define.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                        string[] defines = define.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                                         intellisense.defines.AddRange(defines);
                                     }
                                     break;

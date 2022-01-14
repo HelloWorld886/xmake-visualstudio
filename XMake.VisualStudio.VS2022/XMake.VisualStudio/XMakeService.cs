@@ -67,7 +67,7 @@ for k,t in pairs(project:targets()) do
 		define = defines
     elseif type(defines) == 'table' then
 		for k, p in pairs(defines) do
-			define = define == '' and p or (define.. ',' .. p)
+			define = define == '' and p or (define.. ';' .. p)
         end
     end
     local arch = t:get('arch') or 'x86'
@@ -75,23 +75,35 @@ for k,t in pairs(project:targets()) do
 	for k, p in pairs(t:pkgs()) do
 		local dir = p:get('sysincludedirs')
 		if dir then
-			includes = includes == '' and dir or (includes .. ',' .. dir)
+			includes = includes == '' and dir or (includes .. ';' .. dir)
 		end
 	end
     local includedirs = t:get('includedirs')
 	if type(includedirs) == 'string' then
-		includes = includes == '' and includedirs or (includes .. ',' .. includedirs)
+		includes = includes == '' and includedirs or (includes .. ';' .. includedirs)
     elseif type(includedirs) == 'table' then
 		for k, p in pairs(includedirs) do
-			includes = includes == '' and p or (includes .. ',' .. p)
+			includes = includes == '' and p or (includes .. ';' .. p)
         end
     end
     local sysincludedirs = t:get('sysincludedirs')
 	if type(sysincludedirs) == 'string' then
-		includes = includes == '' and sysincludedirs or (includes .. ',' .. sysincludedirs)
+		includes = includes == '' and sysincludedirs or (includes .. ';' .. sysincludedirs)
     elseif type(sysincludedirs) == 'table' then
 		for k, p in pairs(sysincludedirs) do
-			includes = includes == '' and p or (includes .. ',' .. p)
+			includes = includes == '' and p or (includes .. ';' .. p)
+        end
+    end
+    local toolchains = t:toolchains()
+    if toolchains then
+		for k, toolchain in pairs(toolchains) do
+			local runenvs = toolchain:runenvs()
+            if runenvs then
+                local include = runenv.INCLUDE
+                if include then
+                    includes = includes == '' and include or (includes .. ';' .. include)
+                end
+            end
         end
     end
     print(string.format('name=%s|define=%s|arch=%s|includes=%s', name, define, arch, includes))
@@ -156,8 +168,8 @@ end
         public IReadOnlyList<string> AllTargets { get => _allTargets; }
 
         public string Mode
-        {
-            get => _mode;
+        { 
+            get => _mode; 
             set
             {
                 if (!string.IsNullOrEmpty(_mode) && _mode != value)
@@ -168,7 +180,7 @@ end
 
         public string Plat
         {
-            get => _plat;
+            get => _plat; 
             set
             {
                 if (!string.IsNullOrEmpty(_plat) && _plat != value)
@@ -178,7 +190,7 @@ end
         }
 
         public string Arch
-        {
+        { 
             get => _arch;
             set
             {
@@ -188,12 +200,11 @@ end
             }
         }
 
-        public string CppProperties
-        {
+        public string CppProperties { 
             get
             {
                 return Path.Combine(_projDir, "CppProperties.json");
-            }
+            } 
         }
 
         public string LaunchVS
@@ -208,7 +219,7 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                if (await RunCommandAsync("f -y") != -1)
+                if(await RunCommandAsync("f -y") != -1)
                     await RefreshTargetAsync();
             });
         }
@@ -232,7 +243,7 @@ end
                     _configChanged = false;
                 }
 
-                if (await RunCommandAsync(command) != -1)
+                if(await RunCommandAsync(command) != -1)
                     await RefreshTargetAsync();
             });
         }
@@ -268,7 +279,7 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                if (await RunCommandAsync("f -c -y") != -1)
+                if(await RunCommandAsync("f -c -y") != -1)
                     await RefreshAllAsync();
             });
         }
@@ -277,7 +288,7 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                if (await RunCommandAsync("f -y") != -1)
+                if(await RunCommandAsync("f -y") != -1)
                     await RefreshTargetAsync();
 
                 string result = await RunScriptAsync(_updateIntellisense);
@@ -287,13 +298,13 @@ end
                 {
                     name = "",
                     inheritEnvironments = new List<string>(1) { "msvc_" + _arch },
-                    includePath = new List<string>(2) { "${env.INCLUDE}", "${workspaceRoot}\\**" },
+                    includePath = new List<string>(2) {"${env.INCLUDE}", "${workspaceRoot}\\**"},
                     defines = new List<string>(),
                     intelliSenseMode = "windows-msvc-" + _arch
                 };
                 DirectoryInfo directoryInfo = new DirectoryInfo(_projDir);
                 intellisense.name = directoryInfo.Name;
-                intellisenseDict.Add("configurations", new Intellisense[] { intellisense });
+                intellisenseDict.Add("configurations", new Intellisense[] { intellisense});
                 using (StringReader reader = new StringReader(result))
                 {
                     while (reader.Peek() > -1)
@@ -315,7 +326,7 @@ end
                                     string includes = kv[1].Trim();
                                     if (!string.IsNullOrEmpty(includes))
                                     {
-                                        string[] includePaths = includes.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                        string[] includePaths = includes.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                                         intellisense.includePath.AddRange(includePaths);
                                     }
                                     break;
@@ -323,7 +334,7 @@ end
                                     string define = kv[1].Trim();
                                     if (!string.IsNullOrEmpty(define))
                                     {
-                                        string[] defines = define.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                                        string[] defines = define.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                                         intellisense.defines.AddRange(defines);
                                     }
                                     break;
@@ -349,7 +360,7 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                if (await RunCommandAsync("f -y") != -1)
+                if(await RunCommandAsync("f -y") != -1)
                     await RefreshTargetAsync();
 
                 string result = await RunScriptAsync(_updateLaunch);
@@ -553,7 +564,7 @@ end
             proc.StartInfo.RedirectStandardError = true;
             proc.StartInfo.StandardOutputEncoding = Encoding.GetEncoding("GBK");
             proc.StartInfo.StandardErrorEncoding = Encoding.GetEncoding("GBK");
-            proc.OutputDataReceived += (s, e) =>
+            proc.OutputDataReceived += (s, e)=>
             {
                 if (!string.IsNullOrEmpty(e.Data))
                 {
@@ -566,7 +577,7 @@ end
                 }
             };
             proc.EnableRaisingEvents = true;
-            proc.Exited += (s, e) =>
+            proc.Exited += (s, e)=>
             {
                 tcs.SetResult(proc.ExitCode);
                 proc.Dispose();
