@@ -86,7 +86,7 @@ namespace XMake.VisualStudio
             XMakeService service = await GetServiceAsync(typeof(XMakeService)) as XMakeService;
 			XMakeOptionPage page = (XMakeOptionPage)GetDialogPage(typeof(XMakeOptionPage));
             if (service != null && page != null)
-                await service.OnAfterPackageLoadedAsync(cancellationToken);
+                await service.OnAfterPackageLoadedAsync(cancellationToken, page);
 
             await base.OnAfterPackageLoadedAsync(cancellationToken);
 
