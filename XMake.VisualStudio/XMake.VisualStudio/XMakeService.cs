@@ -642,7 +642,7 @@ end
 
             var proc = new System.Diagnostics.Process();
             proc.StartInfo.WorkingDirectory = _projDir;
-            proc.StartInfo.FileName = "xmake";
+            proc.StartInfo.FileName = ExecutablePath;
             proc.StartInfo.Arguments = command;
             proc.StartInfo.UseShellExecute = false;
             proc.StartInfo.RedirectStandardOutput = true;
@@ -684,7 +684,7 @@ end
             using (var proc = new System.Diagnostics.Process())
             {
                 proc.StartInfo.WorkingDirectory = _projDir;
-                proc.StartInfo.FileName = "xmake";
+                proc.StartInfo.FileName = ExecutablePath;
                 proc.StartInfo.Arguments = "lua -c " + script;
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.RedirectStandardOutput = true;
