@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Task = System.Threading.Tasks.Task;
+using System.ComponentModel;
 
 namespace XMake.VisualStudio
 {
@@ -36,6 +37,7 @@ namespace XMake.VisualStudio
     [Guid(XMakePluginPackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
     [ProvideToolWindow(typeof(XMake.VisualStudio.XMakeToolWindow))]
+    [ProvideOptionPage(typeof(XMakeOptionPage), "XMake", "General", 0, 0, true)]
     public sealed class XMakePluginPackage : AsyncPackage
     {
         /// <summary>
@@ -72,8 +74,9 @@ namespace XMake.VisualStudio
             await XMakeCommand.InitializeAsync(this);
 
             XMakeService service = await GetServiceAsync(typeof(XMakeService)) as XMakeService;
-            if (service != null)
-                await service.OnAfterPackageLoadedAsync(cancellationToken);
+            XMakeOptionPage page = (XMakeOptionPage)GetDialogPage(typeof(XMakeOptionPage));
+            if (service != null && page != null)
+                await service.OnAfterPackageLoadedAsync(cancellationToken, page);
         }
 
         private async Task<object> CreateXMakeAsync(IAsyncServiceContainer container, CancellationToken cancellationToken, Type serviceType)
@@ -109,5 +112,30 @@ namespace XMake.VisualStudio
         }
 
         #endregion
+    }
+
+    [Guid("5183218B-3091-4919-A875-1BB034166D22")]
+    public class XMakeOptionPage : DialogPage
+    {
+        public Action<string, object> OptionChange;
+
+        private string _customExecutablePath;
+
+        [Category("XMake")]
+        [DisplayName("Custom Executable Path")]
+        [Description("Where is xmake.exe")]
+        public string CustomExecutablePath
+        {
+            get { return _customExecutablePath; }
+            set 
+            {
+                if (_customExecutablePath == value)
+                    return;
+
+                _customExecutablePath = value;
+                if (OptionChange != null)
+                    OptionChange("CustomExecutablePath", _customExecutablePath);
+            }
+        }
     }
 }

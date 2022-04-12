@@ -99,7 +99,7 @@ for k,t in pairs(project:targets()) do
 		for k, toolchain in pairs(toolchains) do
 			local runenvs = toolchain:runenvs()
             if runenvs then
-                local include = runenv.INCLUDE
+                local include = runenvs.INCLUDE
                 if include then
                     includes = includes == '' and include or (includes .. ';' .. include)
                 end
@@ -142,7 +142,9 @@ end
         private string _mode;
         private string _plat;
         private string _arch;
+        private XMakeOptionPage _page;
         private bool _configChanged = false;
+        private bool _isExecutable = false;
 
         public string ProjDir
         {
@@ -159,6 +161,7 @@ end
                 _target = value;
             }
         }
+
         public string[] AllModes { get => _allModes; }
 
         public string[] AllPlats { get => _allPlats; }
@@ -212,6 +215,26 @@ end
             get
             {
                 return Path.Combine(_projDir, "Launch.vs.json");
+            }
+        }
+
+        public bool IsValid
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_projDir))
+                    return false;
+                return _isExecutable;
+            }
+        }
+
+        public string ExecutablePath
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_page.CustomExecutablePath))
+                    return "xmake";
+                return _page.CustomExecutablePath;
             }
         }
 
@@ -417,10 +440,20 @@ end
             _package = package;
         }
 
-        public async Task OnAfterPackageLoadedAsync(CancellationToken cancellationToken)
+        public async Task OnAfterPackageLoadedAsync(CancellationToken cancellationToken, XMakeOptionPage page)
         {
+            _page = page;
+            _page.OptionChange += OnOptionChanged;
             await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
 
+            if(!CheckIsExecutable())
+            {
+                _isExecutable = false;
+                await PrintAsync("Access https://xmake.io to download and install xmake first!");
+                return;
+            }
+
+            _isExecutable = true;
             IVsSolution solution = await _package.GetServiceAsync(typeof(SVsSolution)) as IVsSolution;
             if (solution != null)
             {
@@ -449,6 +482,59 @@ end
                     await RefreshAllAsync();
                     break;
                 }
+            }
+        }
+
+        private bool CheckIsExecutable()
+        {
+            using (var proc = new System.Diagnostics.Process())
+            {
+                proc.StartInfo.WorkingDirectory = _projDir;
+                proc.StartInfo.FileName = ExecutablePath;
+                proc.StartInfo.Arguments = "--version";
+                proc.StartInfo.UseShellExecute = false;
+                proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.CreateNoWindow = true;
+                proc.StartInfo.RedirectStandardError = true;
+                proc.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
+                proc.StartInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
+                try
+                {
+                    if (proc.Start())
+                    {
+                        Regex regex = new Regex("\u001B\\[[;\\d]*m");
+                        string result = regex.Replace(proc.StandardOutput.ReadToEnd(), "");
+                        if (!string.IsNullOrEmpty(result))
+                            return true;
+                    }
+                }
+                catch(Exception e)
+                {
+                    return false;
+                }
+
+            }
+
+            return false;
+        }
+
+        private void OnOptionChanged(string option, object value)
+        {
+            if(option == "CustomExecutablePath")
+            {
+                if (!CheckIsExecutable())
+                {
+                    _isExecutable = false;
+                    _package.JoinableTaskFactory.RunAsync(async ()=>{
+                        await PrintAsync("Access https://xmake.io to download and install xmake first!");
+                    });
+                }
+                else
+                {
+                    _isExecutable = true;
+                }
+
+                _package.JoinableTaskFactory.Run(RefreshEnableAsync);
             }
         }
 
@@ -606,8 +692,16 @@ end
                 proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
                 proc.StartInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
-                if (proc.Start())
-                    result = await proc.StandardOutput.ReadToEndAsync();
+                try
+                {
+                    if (proc.Start())
+                        result = await proc.StandardOutput.ReadToEndAsync();
+                }
+                catch(Exception e)
+                {
+                    return string.Empty;
+                }
+
             }
 
             return result;
@@ -641,6 +735,19 @@ end
             {
                 ((IVsWindowFrame)window.Frame).Show();
                 window.RefreshConfig();
+            }
+        }
+
+        private async Task RefreshEnableAsync()
+        {
+            XMakeToolWindow window = await _package.FindToolWindowAsync(typeof(XMakeToolWindow),
+                0,
+                true,
+                _package.DisposalToken) as XMakeToolWindow;
+            if (window != null)
+            {
+                ((IVsWindowFrame)window.Frame).Show();
+                window.RefreshEnable();
             }
         }
 

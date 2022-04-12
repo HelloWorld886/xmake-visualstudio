@@ -74,7 +74,7 @@ namespace XMake.VisualStudio
 
         public void RefreshEnable()
         {
-            _control.IsEnabled = !string.IsNullOrEmpty(_service.ProjDir);
+            _control.IsEnabled = _service.IsValid;
         }
 
         public void RefreshConfig()

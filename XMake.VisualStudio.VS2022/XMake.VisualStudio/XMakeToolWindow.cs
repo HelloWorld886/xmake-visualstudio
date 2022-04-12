@@ -51,6 +51,7 @@ namespace XMake.VisualStudio
             _control.cleanConfig = CleanConfig;
             _control.updateIntellisense = UpdateIntellisense;
             _control.updateLaunch = UpdateLaunch;
+
             for (int i = 0; i < _service.AllModes.Length; i++)
             {
                 _control.ModeComboBox.Items.Add(_service.AllModes[i]);
@@ -73,7 +74,7 @@ namespace XMake.VisualStudio
 
         public void RefreshEnable()
         {
-            _control.IsEnabled = !string.IsNullOrEmpty(_service.ProjDir);
+            _control.IsEnabled = _service.IsValid;
         }
 
         public void RefreshConfig()
