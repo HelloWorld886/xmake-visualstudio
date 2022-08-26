@@ -57,10 +57,6 @@ namespace XMake.VisualStudio
                 _control.ModeComboBox.Items.Add(_service.AllModes[i]);
             }
 
-            for (int i = 0; i < _service.AllArchs.Length; i++)
-            {
-                _control.ArchComboBox.Items.Add(_service.AllArchs[i]);
-            }
 
             for (int i = 0; i < _service.AllPlats.Length; i++)
             {
@@ -80,7 +76,7 @@ namespace XMake.VisualStudio
         public void RefreshConfig()
         {
             _control.PlatformComboBox.SelectedItem = _service.Plat;
-            _control.ArchComboBox.SelectedItem = _service.Arch;
+           // _control.ArchComboBox.SelectedItem = _service.Arch;
             _control.ModeComboBox.SelectedItem = _service.Mode;
         }
 
@@ -149,6 +145,13 @@ namespace XMake.VisualStudio
         private void OnPlatChanged(string obj)
         {
             _service.Plat = obj;
+
+            _control.ArchComboBox.Items.Clear();
+            for (int i = 0; i < _service.AllArchs.Length; i++)
+            {
+                _control.ArchComboBox.Items.Add(_service.AllArchs[i]);
+            }
+            _control.ArchComboBox.SelectedItem = _service.Arch;
         }
     }
 }

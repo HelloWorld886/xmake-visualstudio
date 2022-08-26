@@ -121,22 +121,21 @@ end
 """;
 
         private XMakePluginPackage _package;
-        private List<string> _allTargets = new List<string>() { "default" };
-        private string[] _allModes = new string[]
+        private readonly List<string> _allTargets = new List<string>() { "default" };
+        private readonly string[] _allModes = new string[]
             {
                 "debug",
                 "release"
             };
-        private string[] _allPlats = new string[]
+        private readonly Tuple<string, string[]>[] _allPlatAndArchs = new Tuple<string, string[]>[]
             {
-                "windows",
-            };
-        private string[] _allArchs = new string[]
-            {
-                "x86",
-                "x64"
+                new Tuple<string, string[]>("windows", new string[]{"x86", "x64"}),
+                new Tuple<string, string[]>("mingw", new string[]{"i386", "x86_64", "arm", "arm64"}),
+                new Tuple<string, string[]>("android", new string[]{"armeabi-v7a", "arm64-v8a"}),
             };
 
+        private string[] _allPlats;
+        private string[] _allArchs;
         private string _projDir;
         private string _target;
         private string _mode;
@@ -164,9 +163,27 @@ end
 
         public string[] AllModes { get => _allModes; }
 
-        public string[] AllPlats { get => _allPlats; }
+        public string[] AllPlats 
+        {
+            get
+            {
+                if(_allPlats == null)
+                {
+                    _allPlats = new string[_allPlatAndArchs.Length];
+                    for (int i = 0; i < _allPlatAndArchs.Length; i++)
+                    {
+                        _allPlats[i] = _allPlatAndArchs[i].Item1;
+                    }
+                }
 
-        public string[] AllArchs { get => _allArchs; }
+                return _allPlats;
+            }
+        }
+
+        public string[] AllArchs
+        {
+            get { return _allArchs; }
+        }
 
         public IReadOnlyList<string> AllTargets { get => _allTargets; }
 
@@ -189,6 +206,16 @@ end
                 if (!string.IsNullOrEmpty(_plat) && _plat != value)
                     _configChanged = true;
                 _plat = value;
+
+                for(int i = 0; i < _allPlats.Length; ++i)
+                {
+                    if(_allPlats[i] == _plat)
+                    {
+                        _allArchs = _allPlatAndArchs[i].Item2;
+                        _arch = _allArchs[0];
+                        break;
+                    }
+                }
             }
         }
 
@@ -242,7 +269,8 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                if(await RunCommandAsync("f -y") != -1)
+                string command = string.Format("f -p {0} -a {1} -m {2} -y", _plat, _arch, _mode);
+                if (await RunCommandAsync(command) != -1)
                     await RefreshTargetAsync();
             });
         }
@@ -320,10 +348,10 @@ end
                 Intellisense intellisense = new Intellisense()
                 {
                     name = "",
-                    inheritEnvironments = new List<string>(1) { "msvc_" + _arch },
+                    inheritEnvironments = new List<string>(1) { "msvc_x64" },
                     includePath = new List<string>(2) {"${env.INCLUDE}", "${workspaceRoot}\\**"},
                     defines = new List<string>(),
-                    intelliSenseMode = "windows-msvc-" + _arch
+                    intelliSenseMode = "windows-msvc-x64"
                 };
                 DirectoryInfo directoryInfo = new DirectoryInfo(_projDir);
                 intellisense.name = directoryInfo.Name;
@@ -557,13 +585,13 @@ end
             if (!string.IsNullOrEmpty(platform))
                 _plat = platform;
             else
-                _plat = _allPlats[0];
+                _plat = _allPlatAndArchs[0].Item1;
 
             string arch = cache != null && cache.Length > 1 && !string.IsNullOrEmpty(cache[1]) ? cache[1] : null;
             if (!string.IsNullOrEmpty(arch))
                 _arch = arch;
             else
-                _arch = _allArchs[0];
+                _arch = _allPlatAndArchs[0].Item2[0];
 
             string mode = cache != null && cache.Length > 2 && !string.IsNullOrEmpty(cache[2]) ? cache[2] : null;
             if (!string.IsNullOrEmpty(mode))
