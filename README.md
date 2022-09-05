@@ -9,3 +9,6 @@ xmake plugin for visual studio
 ![Options](screenshot/options.png)
 
 ![ToolsWindow](screenshot/tools.png)
+
+# How to open xmake project
+> make sure xmake.lua is in your project directory root, right click on project directory and open with Visual Studio.
