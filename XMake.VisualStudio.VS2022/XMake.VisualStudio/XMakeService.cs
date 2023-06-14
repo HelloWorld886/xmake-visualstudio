@@ -132,6 +132,7 @@ end
                 new Tuple<string, string[]>("windows", new string[]{"x86", "x64"}),
                 new Tuple<string, string[]>("mingw", new string[]{"i386", "x86_64", "arm", "arm64"}),
                 new Tuple<string, string[]>("android", new string[]{"armeabi-v7a", "arm64-v8a"}),
+                new Tuple<string, string[]>("wasm", new string[] { })
             };
 
         private string[] _allPlats;
@@ -212,7 +213,14 @@ end
                     if(_allPlats[i] == _plat)
                     {
                         _allArchs = _allPlatAndArchs[i].Item2;
-                        _arch = _allArchs[0];
+                        if(_allArchs.Length != 0)
+                        {
+                            _arch = _allArchs[0];
+                        }
+                        else
+                        {
+                            _arch = string.Empty;
+                        }
                         break;
                     }
                 }
@@ -269,7 +277,15 @@ end
         {
             _package.JoinableTaskFactory.RunAsync(async () =>
             {
-                string command = string.Format("f -p {0} -a {1} -m {2} -y", _plat, _arch, _mode);
+                string command = "";
+                if (!string.IsNullOrEmpty(_arch))
+                {
+                    command = string.Format("f -p {0} -a {1} -m {2} -y", _plat, _arch, _mode);
+                }
+                else
+                {
+                    command = string.Format("f -p {0} -m {1} -y", _plat, _mode);
+                }
                 if (await RunCommandAsync(command) != -1)
                     await RefreshTargetAsync();
             });
@@ -460,7 +476,16 @@ end
 
         public Task<int> UpdateConfigAsync()
         {
-            return RunCommandAsync(string.Format("f -p {0} -a {1} -m {2} -y", _plat, _arch, _mode));
+            string command = "";
+            if (!string.IsNullOrEmpty(_arch))
+            {
+                command = string.Format("f -p {0} -a {1} -m {2} -y", _plat, _arch, _mode);
+            }
+            else
+            {
+                command = string.Format("f -p {0} -m {1} -y", _plat, _mode);
+            }
+            return RunCommandAsync(command);
         }
 
         public async Task InitializeAsync(XMakePluginPackage package, CancellationToken cancellationToken)

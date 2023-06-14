@@ -151,7 +151,16 @@ namespace XMake.VisualStudio
             {
                 _control.ArchComboBox.Items.Add(_service.AllArchs[i]);
             }
-            _control.ArchComboBox.SelectedItem = _service.Arch;
+
+            if(string.IsNullOrEmpty(_service.Arch))
+            {
+                _control.ArchComboBox.IsEnabled = false;
+            }
+            else
+            {
+                _control.ArchComboBox.IsEnabled = true;
+                _control.ArchComboBox.SelectedItem = _service.Arch;
+            }
         }
     }
 }
