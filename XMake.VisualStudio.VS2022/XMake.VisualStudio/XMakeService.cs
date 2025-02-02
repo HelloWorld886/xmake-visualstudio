@@ -74,9 +74,13 @@ for k,t in pairs(project:targets()) do
 	local includes = ''
 	for k, p in pairs(t:pkgs()) do
 		local dir = p:get('sysincludedirs')
-		if dir then
-			includes = includes == '' and dir or (includes .. ';' .. dir)
-		end
+	    if type(dir) == 'string' then
+		    includes = includes == '' and dir or (includes .. ';' .. dir)
+        elseif type(dir) == 'table' then
+		    for m, n in pairs(dir) do
+			    includes = includes == '' and n or (includes .. ';' .. n)
+            end
+        end
 	end
     local includedirs = t:get('includedirs')
 	if type(includedirs) == 'string' then
