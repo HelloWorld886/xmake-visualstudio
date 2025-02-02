@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="XMake.VisualStudio.6306c5ba-1a81-4268-aba8-e573a5425e54" Version="1.12" Language="en-US" Publisher="HelloWorld886" />
+        <Identity Id="XMake.VisualStudio.6306c5ba-1a81-4268-aba8-e573a5425e54" Version="1.13" Language="en-US" Publisher="HelloWorld886" />
         <DisplayName>XMake.VisualStudio.VS2022</DisplayName>
         <Description xml:space="preserve">XMake VSIX Plugin for visual studio 2022.</Description>
         <Icon>Icon.png</Icon>
